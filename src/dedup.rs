@@ -116,6 +116,10 @@ fn build_runs(idx: Index, files: &[(FilePath, Hashed)]) -> Pairs {
             continue; // past stat.size: file grew after stat
         }
         for &dst in &locs[1..] {
+            // Don't attempt to dedupe if the src and dst are the same file
+            if src.file == dst.file {
+                continue;
+            }
             // tail-vs-full mismatch or stale index
             if chunk_len(&files[dst.file as usize].1, dst.chunk as u64, blksz as u64) != src_len {
                 continue;
