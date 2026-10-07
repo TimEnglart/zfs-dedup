@@ -354,7 +354,7 @@ impl<'a> Worker<'a> {
                 Err(e) if is_busy(&e) => self.stats.busy += 1,
                 Err(e) => {
                     eprintln!(
-                        "skip {:?}+{dst_off} <- {:?}+{src_off}: {e:#}",
+                        "skip [{len}] {:?}+{dst_off} <- {:?}+{src_off}: {e:#}",
                         self.path(dst_file as usize),
                         self.path(src_file as usize),
                     );
