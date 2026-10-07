@@ -201,7 +201,12 @@ impl Hashed {
 // Process in batches so the per-file hash vectors and Stat (with
 // timestamps) are short-lived instead of accumulating until the end.
 pub fn hash_files(cache: &Cache, paths: Paths<u64>) -> Result<Paths<Result<Hashed>>> {
-    paths.map_batched(100_000, |arena, batch| {
+    let total = paths.files.len();
+    let mut processed = 0usize;
+    let mut successful = 0usize;
+    let mut hits = 0usize;
+    paths.map_batched(10_000, |arena, batch| {
+        let batch_len = batch.len();
         let results: Vec<_> = batch
             .into_par_iter()
             .map(|(p, fsid)| {
@@ -213,6 +218,21 @@ pub fn hash_files(cache: &Cache, paths: Paths<u64>) -> Result<Paths<Result<Hashe
             Ok((s, false, hashes)) => Some((s.fsid, s.ino, s.entry(hashes))),
             _ => None,
         }))?;
+        processed += batch_len;
+        for (_, result) in &results {
+            if let Ok((_, from_cache, _)) = result {
+                successful += 1;
+                hits += usize::from(*from_cache);
+            }
+        }
+        if successful > 0 {
+            eprintln!(
+                "  hash progress: {processed}/{total} files, {hits}/{successful} from cache ({:.1}%)",
+                100.0 * hits as f64 / successful as f64
+            );
+        } else {
+            eprintln!("  hash progress: {processed}/{total} files, no successful files yet");
+        }
         Ok(results
             .into_iter()
             .map(|(p, r)| (p, r.map(|(s, fc, _)| Hashed::new(&s, fc))))
